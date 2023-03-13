@@ -68,9 +68,6 @@ public class MinesweeperApp extends Application {
                         int neighborsFlagged = (int) neighbors.stream().filter(n -> n.isFlagged).count();
                         int neighborsMined = (int) neighbors.stream().filter(n -> n.hasMine).count();
 
-                        System.out.println("neighborsFlagged: " + neighborsFlagged);
-                        System.out.println("NeighborsMined: " + neighborsMined);
-
                         if (neighborsFlagged == neighborsMined) {
                             open();
                             for (Tile neighbor : neighbors)
@@ -97,6 +94,7 @@ public class MinesweeperApp extends Application {
             }
 
             isOpen = true;
+            triesIncrease();
             text.setVisible(true);
             border.setFill(this.hasMine ? Color.DARKRED : Color.DARKGRAY);
 
@@ -110,17 +108,15 @@ public class MinesweeperApp extends Application {
                 gameStarted = true;
             }
 
-            if (isOpen)
+            if (isOpen || minesRemainingNumber == 0 && !isFlagged)
                 return;
 
             if (!isFlagged) {
-                minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
-
                 isFlagged = true;
-                triesIncrease();
-                if (!hasSuperMine) {
+                minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
+                if (!hasSuperMine || tries > 4) {
                     border.setFill(Color.ORANGERED);
-                } else if (tries <= 4) {
+                } else {
                     List<Tile> sameRowColNeighbors = getRowColNeighbors(this);
                     for (Tile tile : sameRowColNeighbors)
                         if (tile.hasMine) tile.flagPermanent();
@@ -137,6 +133,7 @@ public class MinesweeperApp extends Application {
         private void flagPermanent() {
             isFlagged = true;
             isFlaggedPermanent = true;
+            border.setFill(Color.ORANGE);
         }
     }
 
@@ -163,6 +160,8 @@ public class MinesweeperApp extends Application {
             }
         }
     };
+
+    private static Button startButton;
 
     private void initializeVariables(String scenarioFile) throws IOException {
 
@@ -308,7 +307,7 @@ public class MinesweeperApp extends Application {
         paneTop.getChildren().addAll(secondsRemainingBox, secondsRemainingText);
     }
     private void createStartButton() {
-        Button startButton = new Button("☺");
+        startButton = new Button("☺");
         startButton.setPrefSize(72, 52);
         startButton.setFont(Font.font("Arial", FontWeight.BOLD,25));
         startButton.setTextFill(Color.GREEN);
