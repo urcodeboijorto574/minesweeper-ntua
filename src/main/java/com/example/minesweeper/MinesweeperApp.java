@@ -7,7 +7,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -25,30 +24,10 @@ public class MinesweeperApp extends Application {
 
     private static final int TILE_SIZE = 35;
     private static int WINDOW_WIDTH, WINDOW_HEIGHT, X_TILES, Y_TILES;
+    private static final BorderPane root = new BorderPane();
+    private static final Pane paneTop = new Pane(), paneCenter = new Pane();
+
     private static Tile[][] grid;
-    private static int totalNumberOfMines, tries = 0;
-    private static boolean superMineExists;
-    private static int numberOfSeconds;
-    private static Timer timer = new Timer();
-    TimerTask task = new TimerTask() {
-
-        int counter = numberOfSeconds;
-        @Override
-        public void run() {
-            if (counter > 0) {
-                System.out.println(counter + " seconds");
-                --counter;
-            } else {
-                System.out.println("HAPPY NEW YEAR!");
-                timer.cancel();
-            }
-        }
-    };
-
-    private static void triesIncrease() {
-        ++tries;
-    }
-
     private class Tile extends StackPane {
         private final int x, y;
         private final boolean hasMine;
@@ -103,6 +82,11 @@ public class MinesweeperApp extends Application {
         }
 
         public void open() {
+            if (!gameStarted) {
+                timer.scheduleAtFixedRate(task, 0, 1000);
+                gameStarted = true;
+            }
+
             if (isOpen)
                 return;
 
@@ -121,24 +105,31 @@ public class MinesweeperApp extends Application {
         }
 
         public void flag() {
+            if (!gameStarted) {
+                timer.scheduleAtFixedRate(task, 0, 1000);
+                gameStarted = true;
+            }
+
             if (isOpen)
                 return;
 
             if (!isFlagged) {
+                minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
 
                 isFlagged = true;
                 triesIncrease();
                 if (!hasSuperMine) {
-                    /* Usual case */
-                    /* TODO: find a way to flag a tile graphically */
+                    border.setFill(Color.ORANGERED);
                 } else if (tries <= 4) {
-                    List<Tile> neighbors = getRowColNeighbors(this);
-                    for (Tile tile : neighbors)
+                    List<Tile> sameRowColNeighbors = getRowColNeighbors(this);
+                    for (Tile tile : sameRowColNeighbors)
                         if (tile.hasMine) tile.flagPermanent();
                         else              tile.open();
                 }
 
             } else if (!isFlaggedPermanent) {
+                minesRemainingText.setText(String.valueOf(++minesRemainingNumber));
+                border.setFill(Color.BLACK);
                 isFlagged = false;
             }
         }
@@ -149,23 +140,29 @@ public class MinesweeperApp extends Application {
         }
     }
 
+    private static boolean gameStarted = false;
+    private static int tries = 0;
+    private static void triesIncrease() { ++tries; }
 
-    private static int toInteger(String str) throws NumberFormatException {
-        return Integer.parseInt(str);
-    }
-    private static boolean isValidCoordinate(int x, int y) {
-        return (x >= 0 && x < X_TILES) && (y >= 0 && y < Y_TILES);
-    }
-    private static boolean invalidValue(int diff, int number, String type) {
-        if (type.equals("mines"))
-            return diff == 1 && (number < 9 || number > 11) ||
-                   diff == 2 && (number < 35 || number > 45);
-        else if (type.equals("seconds"))
-            return diff == 1 && (number < 120 || number > 180) ||
-                   diff == 2 && (number < 240 || number > 360);
-        else
-            return !(number == 0 || (diff != 1 && number == 1));
-    }
+    private static int minesTotalNumber, minesRemainingNumber;
+    private static Text minesRemainingText;
+    private static boolean superMineExists;
+
+    private static int secondsTotalNumber, secondsRemainingNumber;
+    private static Text secondsRemainingText;
+    private static Timer timer = new Timer();
+    private static TimerTask task = new TimerTask() {
+        @Override
+        public void run() {
+            if (secondsRemainingNumber > 0)
+                secondsRemainingText.setText(String.valueOf(--secondsRemainingNumber));
+            else {
+                // TODO: fix what happens when timer reaches zero
+                System.out.println("Timer reached zero!");
+                timer.cancel();
+            }
+        }
+    };
 
     private void initializeVariables(String scenarioFile) throws IOException {
 
@@ -193,12 +190,14 @@ public class MinesweeperApp extends Application {
                     case 1 -> {
                         if (invalidValue(difficulty, data, "mines"))
                             throw new InvalidValueException("Invalid number of mines given.");
-                        totalNumberOfMines = data;
+                        minesTotalNumber = data;
+                        minesRemainingNumber = minesTotalNumber;
                     }
                     case 2 -> {
                         if (invalidValue(difficulty, data, "seconds"))
                             throw new InvalidValueException("Invalid number of seconds given.");
-                        numberOfSeconds = data;
+                        secondsTotalNumber = data;
+                        secondsRemainingNumber = secondsTotalNumber;
                     }
                     case 3 -> {
                         if (invalidValue(difficulty, data, "supermine"))
@@ -226,6 +225,100 @@ public class MinesweeperApp extends Application {
         }
     }
 
+    private void initializePanesSizes() {
+        root.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+        root.setMinSize(X_TILES * TILE_SIZE, Y_TILES * TILE_SIZE);
+
+        paneTop.setPrefSize(WINDOW_WIDTH, 80);
+        paneTop.setMinSize(WINDOW_WIDTH, paneTop.getPrefHeight());
+
+        paneCenter.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
+        paneCenter.setMinSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
+    }
+
+    private void createPaneTop() {
+        createMenuBar();
+        createMinesRemaining();
+        createStartButton();
+        createSecondsRemaining();
+    }
+    private double menuBarHeight = 25.6;
+    private void createMenuBar() {
+        final Menu applicationMenu = new Menu("Application");
+        final MenuItem createItem = new MenuItem("Create");
+        final MenuItem loadItem = new MenuItem("Load");
+        final MenuItem startItem = new MenuItem("Start");
+        final SeparatorMenuItem separator = new SeparatorMenuItem();
+        final MenuItem exitItem = new MenuItem("Exit");
+        applicationMenu.getItems().addAll(createItem, loadItem, startItem, separator, exitItem);
+        final Menu detailsMenu = new Menu("Details");
+        final MenuItem roundsItem = new MenuItem("Rounds");
+        final MenuItem solutionItem = new MenuItem("Solution");
+        detailsMenu.getItems().addAll(roundsItem, solutionItem);
+
+        MenuBar menuBar = new MenuBar();
+        menuBar.relocate(0, 0);
+        menuBar.setPrefSize(WINDOW_WIDTH, menuBarHeight);
+        menuBar.getMenus().addAll(applicationMenu, detailsMenu);
+
+        paneTop.getChildren().add(menuBar);
+    }
+    private void createMinesRemaining() {
+        Rectangle minesRemainingBox = new Rectangle(80, 40);
+
+        minesRemainingBox.setStroke(Color.DARKGRAY);
+        minesRemainingBox.setStrokeWidth(3);
+        minesRemainingBox.setFill(Color.rgb(42,84,40));
+        minesRemainingBox.relocate(
+                WINDOW_WIDTH - 5 - minesRemainingBox.getWidth() - minesRemainingBox.getStrokeWidth(),
+                (paneTop.getPrefHeight() + menuBarHeight - 40 - minesRemainingBox.getStrokeWidth()) / 2.0
+        );
+
+        minesRemainingText = new Text(String.valueOf(minesTotalNumber));
+        minesRemainingText.setFont(Font.font("Arial"));
+        minesRemainingText.setScaleX(2);
+        minesRemainingText.setScaleY(2);
+        minesRemainingText.relocate(
+                minesRemainingBox.getLayoutX() + minesRemainingBox.getWidth() / 1.7,
+                menuBarHeight + minesRemainingBox.getHeight() / 2.5 + 5
+        );
+
+        paneTop.getChildren().addAll(minesRemainingBox, minesRemainingText);
+    }
+    private void createSecondsRemaining() {
+        Rectangle secondsRemainingBox = new Rectangle(80, 40);
+
+        secondsRemainingBox.setStroke(Color.DARKGRAY);
+        secondsRemainingBox.setStrokeWidth(3);
+        secondsRemainingBox.setFill(Color.rgb(42,84,40));
+        secondsRemainingBox.relocate(
+                5,
+                (paneTop.getPrefHeight() + menuBarHeight - 40 - secondsRemainingBox.getStrokeWidth()) / 2.0
+        );
+
+        secondsRemainingText = new Text(String.valueOf(secondsTotalNumber));
+        secondsRemainingText.setFont(Font.font("Arial"));
+        secondsRemainingText.setScaleX(2);
+        secondsRemainingText.setScaleY(2);
+        secondsRemainingText.relocate(
+                secondsRemainingBox.getX() + secondsRemainingBox.getWidth() / 1.7,
+                menuBarHeight + secondsRemainingBox.getHeight() / 2.5 + 5
+        );
+
+        paneTop.getChildren().addAll(secondsRemainingBox, secondsRemainingText);
+    }
+    private void createStartButton() {
+        Button startButton = new Button("☺");
+        startButton.setPrefSize(72, 52);
+        startButton.setFont(Font.font("Arial", FontWeight.BOLD,25));
+        startButton.setTextFill(Color.GREEN);
+        startButton.relocate(
+                (WINDOW_WIDTH - startButton.getPrefWidth()) / 2.0,
+                (paneTop.getPrefHeight() + menuBarHeight - startButton.getPrefHeight()) / 2.0
+        );
+
+        paneTop.getChildren().add(startButton);
+    }
 
     private List<Tile> getNeighbors(Tile tile) {
         List<Tile> neighbors = new ArrayList<>();
@@ -292,13 +385,13 @@ public class MinesweeperApp extends Application {
         // boolean plantMine;
         boolean superMinePlanted = false;
         // final double densityOfMines = ((double) totalNumberOfMines) / ((double) (X_TILES * Y_TILES));
-        final int nthMineWithSuperMine = ((int) (Math.random() * 100)) % totalNumberOfMines;
+        final int nthMineWithSuperMine = ((int) (Math.random() * 100)) % minesTotalNumber;
         boolean[][] minesMap = new boolean[X_TILES][Y_TILES];
         int currentNumberOfMines = 0, superMineX = 0, superMineY = 0;
         for (int x = 0; x < X_TILES; ++x) for (int y = 0; y < Y_TILES; ++y)
             minesMap[x][y] = false;
 
-        while (currentNumberOfMines < totalNumberOfMines) {
+        while (currentNumberOfMines < minesTotalNumber) {
             int randomX = ((int) (Math.random() * 100)) % X_TILES;
             int randomY = ((int) (Math.random() * 100)) % Y_TILES;
 
@@ -348,105 +441,21 @@ public class MinesweeperApp extends Application {
         }
     }
 
-
     @Override
     public void start(Stage stage) {
         try {
-            initializeVariables("medialab\\scenario-1.txt");
-            //checkScenarioFile("medialab\\examples\\invalid_range_example.txt");
+            //root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("minesweeper-view.fxml")));
+            initializeVariables("medialab\\scenario-1.txt"); /*initializeVariables("medialab\\examples\\invalid_range_example.txt");*/
+            initializePanesSizes();
 
-            //BorderPane root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("minesweeper-view.fxml")));
-            BorderPane root = new BorderPane();
-            root.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-            root.setMinSize(X_TILES * TILE_SIZE, Y_TILES * TILE_SIZE);
-
-            Pane paneTop = new Pane(), paneCenter = new Pane();
-            paneTop.setPrefSize(WINDOW_WIDTH, 80);
-            paneTop.setMinSize(WINDOW_WIDTH, paneTop.getPrefHeight());
-            paneCenter.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
-            paneCenter.setMinSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
-
-            // Menu and items
-            final Menu applicationMenu = new Menu("Application");
-            final MenuItem createItem = new MenuItem("Create");
-            final MenuItem loadItem = new MenuItem("Load");
-            final MenuItem startItem = new MenuItem("Start");
-            final SeparatorMenuItem separator = new SeparatorMenuItem();
-            final MenuItem exitItem = new MenuItem("Exit");
-            applicationMenu.getItems().addAll(createItem, loadItem, startItem, separator, exitItem);
-            final Menu detailsMenu = new Menu("Details");
-            final MenuItem roundsItem = new MenuItem("Rounds");
-            final MenuItem solutionItem = new MenuItem("Solution");
-            detailsMenu.getItems().addAll(roundsItem, solutionItem);
-
-            MenuBar menuBar = new MenuBar();
-            menuBar.relocate(0, 0);
-            menuBar.setPrefSize(WINDOW_WIDTH, 25.6);
-            menuBar.getMenus().addAll(applicationMenu, detailsMenu);
-
-            // Seconds and mines remaining countdowns
-            Rectangle minesRemainingBox = new Rectangle(80, 40),
-                    secondsRemainingBox = new Rectangle(80, 40);
-
-            minesRemainingBox.setStroke(Color.DARKGRAY);
-            minesRemainingBox.setStrokeWidth(3);
-            minesRemainingBox.setFill(Color.rgb(42,84,40));
-            minesRemainingBox.relocate(
-                    WINDOW_WIDTH - 5 - minesRemainingBox.getWidth() - minesRemainingBox.getStrokeWidth(),
-                    (paneTop.getPrefHeight() + menuBar.getPrefHeight() - 40 - minesRemainingBox.getStrokeWidth()) / 2.0
-            );
-            secondsRemainingBox.setStroke(Color.DARKGRAY);
-            secondsRemainingBox.setStrokeWidth(3);
-            secondsRemainingBox.setFill(Color.rgb(42,84,40));
-            secondsRemainingBox.relocate(
-                    5,
-                    (paneTop.getPrefHeight() + menuBar.getPrefHeight() - 40 - secondsRemainingBox.getStrokeWidth()) / 2.0
-            );
-
-            Text secondsRemainingText = new Text(String.valueOf(numberOfSeconds));
-            secondsRemainingText.setFont(Font.font("Arial"));
-            secondsRemainingText.setScaleX(2);
-            secondsRemainingText.setScaleY(2);
-            secondsRemainingText.relocate(
-                    secondsRemainingBox.getX() + secondsRemainingBox.getWidth() / 1.7,
-                    menuBar.getPrefHeight() + secondsRemainingBox.getHeight() / 2.5 + 5
-            );
-
-            Text minesRemainingText = new Text(String.valueOf(totalNumberOfMines));
-            minesRemainingText.setFont(Font.font("Arial"));
-            minesRemainingText.setScaleX(2);
-            minesRemainingText.setScaleY(2);
-            minesRemainingText.relocate(
-                    minesRemainingBox.getLayoutX() + minesRemainingBox.getWidth() / 1.7,
-                    menuBar.getPrefHeight() + minesRemainingBox.getHeight() / 2.5 + 5
-            );
-
-            // Start button
-            Button startButton = new Button("☺");
-            startButton.setPrefSize(72, 52);
-            startButton.setFont(Font.font("Arial", FontWeight.BOLD,25));
-            startButton.setTextFill(Color.GREEN);
-            startButton.relocate(
-                    (WINDOW_WIDTH - startButton.getPrefWidth()) / 2.0,
-                    (paneTop.getPrefHeight() + menuBar.getPrefHeight() - startButton.getPrefHeight()) / 2.0
-            );
-
-            // Assembling top pane
-            paneTop.getChildren().addAll(
-                    menuBar,
-                    secondsRemainingBox, secondsRemainingText,
-                    startButton,
-                    minesRemainingBox, minesRemainingText
-            );
+            createPaneTop();
             root.setTop(paneTop);
+            createContent();
             root.setCenter(paneCenter);
 
-            createContent();
-
-            timer.scheduleAtFixedRate(task, 0, 1000);
-
-            for (int x = 0; x < X_TILES; ++x) for (int y = 0; y < Y_TILES; ++y)
-                paneCenter.getChildren().add(grid[x][y]);
+            for (int x = 0; x < X_TILES; ++x)
+                for (int y = 0; y < Y_TILES; ++y)
+                    paneCenter.getChildren().add(grid[x][y]);
 
             Scene scene = new Scene(root);
             stage.setScene(scene);
@@ -479,6 +488,23 @@ public class MinesweeperApp extends Application {
             timer.cancel();
             stage.close();
         }
+    }
+
+    private static int toInteger(String str) throws NumberFormatException {
+        return Integer.parseInt(str);
+    }
+    private static boolean isValidCoordinate(int x, int y) {
+        return (x >= 0 && x < X_TILES) && (y >= 0 && y < Y_TILES);
+    }
+    private static boolean invalidValue(int diff, int number, String type) {
+        if (type.equals("mines"))
+            return diff == 1 && (number < 9 || number > 11) ||
+                    diff == 2 && (number < 35 || number > 45);
+        else if (type.equals("seconds"))
+            return diff == 1 && (number < 120 || number > 180) ||
+                    diff == 2 && (number < 240 || number > 360);
+        else
+            return !(number == 0 || (diff != 1 && number == 1));
     }
 
     public static void main(String[] args) { launch(); }
