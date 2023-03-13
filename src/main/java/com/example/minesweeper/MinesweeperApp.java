@@ -1,15 +1,16 @@
 package com.example.minesweeper;
 
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
@@ -25,10 +26,8 @@ public class MinesweeperApp extends Application {
     private static final int TILE_SIZE = 35;
     private static int WINDOW_WIDTH, WINDOW_HEIGHT, X_TILES, Y_TILES;
     private static Tile[][] grid;
-
     private static int totalNumberOfMines, tries = 0;
     private static boolean superMineExists;
-
     private static int numberOfSeconds;
     private static Timer timer = new Timer();
     TimerTask task = new TimerTask() {
@@ -168,12 +167,12 @@ public class MinesweeperApp extends Application {
             return !(number == 0 || (diff != 1 && number == 1));
     }
 
-    private void checkScenarioFile(String fileName) throws IOException {
+    private void initializeVariables(String scenarioFile) throws IOException {
 
         try {
-            File scenarioId = new File("./src/main/java/com/example/minesweeper/" + fileName);
+            File scenarioId = new File("./src/main/java/com/example/minesweeper/" + scenarioFile);
             if (!scenarioId.exists())
-                throw new FileNotFoundException("File " + fileName + " does not exist.");
+                throw new FileNotFoundException("File " + scenarioFile + " does not exist.");
 
             Scanner myReader = new Scanner(scenarioId);
             for (int line = 0, difficulty = 0, data; myReader.hasNextLine(); ++line) {
@@ -209,7 +208,7 @@ public class MinesweeperApp extends Application {
                             );
                         superMineExists = (data == 1);
                     }
-                    default -> throw new InvalidDescriptionException("The " + fileName + " file has excess lines.");
+                    default -> throw new InvalidDescriptionException("The " + scenarioFile + " file has excess lines.");
                 }
 
                 System.out.println(data);
@@ -332,8 +331,18 @@ public class MinesweeperApp extends Application {
                 long mines = getNeighbors(tile).stream().filter(t -> t.hasMine).count();
 
                 if (mines > 0) {
+                    switch ((int) mines) {
+                        case 1 -> tile.text.setFill(Color.BLUE);
+                        case 2 -> tile.text.setFill(Color.GREEN);
+                        case 3 -> tile.text.setFill(Color.RED);
+                        case 4 -> tile.text.setFill(Color.PURPLE);
+                        case 5 -> tile.text.setFill(Color.BROWN);
+                        case 6 -> tile.text.setFill(Color.LIGHTGREY);
+                        case 7 -> tile.text.setFill(Color.DARKRED);
+                        case 8 -> tile.text.setFill(Color.BLACK);
+                    }
                     tile.text.setText(String.valueOf(mines));
-
+                    tile.text.setStrokeWidth(5);
                 }
             }
         }
@@ -342,23 +351,94 @@ public class MinesweeperApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        // scene = new Scene(createContent());
         try {
+            initializeVariables("medialab\\scenario-1.txt");
+            //checkScenarioFile("medialab\\examples\\invalid_range_example.txt");
 
-            checkScenarioFile("medialab\\scenario-1.txt");
-            // checkScenarioFile("medialab\\examples\\invalid_range_example.txt");
-
-            BorderPane root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("minesweeper-view.fxml")));
+            //BorderPane root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("minesweeper-view.fxml")));
+            BorderPane root = new BorderPane();
             root.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+            root.setMinSize(X_TILES * TILE_SIZE, Y_TILES * TILE_SIZE);
 
-            Pane paneTop = new Pane();
-            paneTop.setPrefWidth(X_TILES * TILE_SIZE);
-            paneTop.setPrefHeight(Y_TILES * TILE_SIZE);
+            Pane paneTop = new Pane(), paneCenter = new Pane();
+            paneTop.setPrefSize(WINDOW_WIDTH, 80);
+            paneTop.setMinSize(WINDOW_WIDTH, paneTop.getPrefHeight());
+            paneCenter.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
+            paneCenter.setMinSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
+
+            // Menu and items
+            final Menu applicationMenu = new Menu("Application");
+            final MenuItem createItem = new MenuItem("Create");
+            final MenuItem loadItem = new MenuItem("Load");
+            final MenuItem startItem = new MenuItem("Start");
+            final SeparatorMenuItem separator = new SeparatorMenuItem();
+            final MenuItem exitItem = new MenuItem("Exit");
+            applicationMenu.getItems().addAll(createItem, loadItem, startItem, separator, exitItem);
+            final Menu detailsMenu = new Menu("Details");
+            final MenuItem roundsItem = new MenuItem("Rounds");
+            final MenuItem solutionItem = new MenuItem("Solution");
+            detailsMenu.getItems().addAll(roundsItem, solutionItem);
+
+            MenuBar menuBar = new MenuBar();
+            menuBar.relocate(0, 0);
+            menuBar.setPrefSize(WINDOW_WIDTH, 25.6);
+            menuBar.getMenus().addAll(applicationMenu, detailsMenu);
+
+            // Seconds and mines remaining countdowns
+            Rectangle minesRemainingBox = new Rectangle(80, 40),
+                    secondsRemainingBox = new Rectangle(80, 40);
+
+            minesRemainingBox.setStroke(Color.DARKGRAY);
+            minesRemainingBox.setStrokeWidth(3);
+            minesRemainingBox.setFill(Color.rgb(42,84,40));
+            minesRemainingBox.relocate(
+                    WINDOW_WIDTH - 5 - minesRemainingBox.getWidth() - minesRemainingBox.getStrokeWidth(),
+                    (paneTop.getPrefHeight() + menuBar.getPrefHeight() - 40 - minesRemainingBox.getStrokeWidth()) / 2.0
+            );
+            secondsRemainingBox.setStroke(Color.DARKGRAY);
+            secondsRemainingBox.setStrokeWidth(3);
+            secondsRemainingBox.setFill(Color.rgb(42,84,40));
+            secondsRemainingBox.relocate(
+                    5,
+                    (paneTop.getPrefHeight() + menuBar.getPrefHeight() - 40 - secondsRemainingBox.getStrokeWidth()) / 2.0
+            );
+
+            Text secondsRemainingText = new Text(String.valueOf(numberOfSeconds));
+            secondsRemainingText.setFont(Font.font("Arial"));
+            secondsRemainingText.setScaleX(2);
+            secondsRemainingText.setScaleY(2);
+            secondsRemainingText.relocate(
+                    secondsRemainingBox.getX() + secondsRemainingBox.getWidth() / 1.7,
+                    menuBar.getPrefHeight() + secondsRemainingBox.getHeight() / 2.5 + 5
+            );
+
+            Text minesRemainingText = new Text(String.valueOf(totalNumberOfMines));
+            minesRemainingText.setFont(Font.font("Arial"));
+            minesRemainingText.setScaleX(2);
+            minesRemainingText.setScaleY(2);
+            minesRemainingText.relocate(
+                    minesRemainingBox.getLayoutX() + minesRemainingBox.getWidth() / 1.7,
+                    menuBar.getPrefHeight() + minesRemainingBox.getHeight() / 2.5 + 5
+            );
+
+            // Start button
+            Button startButton = new Button("☺");
+            startButton.setPrefSize(72, 52);
+            startButton.setFont(Font.font("Arial", FontWeight.BOLD,25));
+            startButton.setTextFill(Color.GREEN);
+            startButton.relocate(
+                    (WINDOW_WIDTH - startButton.getPrefWidth()) / 2.0,
+                    (paneTop.getPrefHeight() + menuBar.getPrefHeight() - startButton.getPrefHeight()) / 2.0
+            );
+
+            // Assembling top pane
+            paneTop.getChildren().addAll(
+                    menuBar,
+                    secondsRemainingBox, secondsRemainingText,
+                    startButton,
+                    minesRemainingBox, minesRemainingText
+            );
             root.setTop(paneTop);
-
-            Pane paneCenter = new Pane();
-            paneCenter.setPrefWidth(X_TILES * TILE_SIZE);
-            paneCenter.setPrefHeight(Y_TILES * TILE_SIZE + 80);
             root.setCenter(paneCenter);
 
             createContent();
@@ -389,13 +469,11 @@ public class MinesweeperApp extends Application {
         }
     }
     public static void exit(Stage stage) {
-
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Exit");
         alert.setHeaderText("You're about to exit!");
         alert.setContentText("Are you sure you want to exit Minesweeper?");
 
-        // { orElseThrow() } == { isPresent() && get() }
         if (alert.showAndWait().orElseThrow() == ButtonType.OK) {
             System.out.println("You successfully exited!");
             timer.cancel();
