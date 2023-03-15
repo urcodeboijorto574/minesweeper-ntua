@@ -27,7 +27,7 @@ public class MinesweeperApp extends Application {
 
     private static final int TILE_SIZE = 35;
     private static int WINDOW_WIDTH, WINDOW_HEIGHT, X_TILES, Y_TILES;
-    private static String fileName = "medialab\\scenario-1.txt"; /*"medialab\\examples\\invalid_range_example.txt"*/
+    private static String fileName = "medialab\\scenario-2.txt";
     private static Stage stageApp;
     private static Scene scene;
     private static BorderPane root;
@@ -161,11 +161,11 @@ public class MinesweeperApp extends Application {
         //Create the mines map // TODO : this needs optimization
         /*
         //boolean plantMine;
-        //boolean superMinePlanted = false;
+        //boolean superminePlanted = false;
         //final double densityOfMines = ((double) totalNumberOfMines) / ((double) (X_TILES * Y_TILES));
         */
-        int currentNumberOfMines = 0, superMineX = 0, superMineY = 0;
-        final int nthMineWithSuperMine = ((int) (Math.random() * 100)) % minesTotalNumber;
+        int currentNumberOfMines = 0, supermineX = -1, supermineY = -1;
+        final int nthMineWithSupermine = ((int) (Math.random() * 100)) % minesTotalNumber;
         boolean[][] minesMap = new boolean[X_TILES][Y_TILES];
         for (int x = 0; x < X_TILES; ++x) for (int y = 0; y < Y_TILES; ++y)
             minesMap[x][y] = false;
@@ -177,22 +177,22 @@ public class MinesweeperApp extends Application {
                 System.out.println("File created: " + minesFile.getName());
             FileWriter fileWriter = new FileWriter("mines.txt");
 
-            boolean isSuperMine;
-
+            boolean isSupermine;
+            int randomX = 0, randomY = 0;
             while (currentNumberOfMines < minesTotalNumber) {
-                int randomX = ((int) (Math.random() * 100)) % X_TILES;
-                int randomY = ((int) (Math.random() * 100)) % Y_TILES;
+                randomX = ((int) (Math.random() * 100)) % X_TILES;
+                randomY = ((int) (Math.random() * 100)) % Y_TILES;
 
                 if (!minesMap[randomX][randomY]) {
                     minesMap[randomX][randomY] = true;
-                    isSuperMine = (++currentNumberOfMines == nthMineWithSuperMine);
-                    if (isSuperMine) {
-                        superMineX = randomX;
-                        superMineY = randomY;
-                        //superMinePlanted = true;
+                    isSupermine = (++currentNumberOfMines == nthMineWithSupermine);
+                    if (isSupermine) {
+                        supermineX = randomX;
+                        supermineY = randomY;
+                        //superminePlanted = true;
                     }
 
-                    fileWriter.write(randomX + " " + randomY + " " + (isSuperMine ? "1" : "0") + "\n");
+                    fileWriter.write(randomX + " " + randomY + " " + (isSupermine ? "1" : "0") + "\n");
                 }
             }
             fileWriter.close();
@@ -207,9 +207,15 @@ public class MinesweeperApp extends Application {
         // Create grid and place all mines
         for (int x = 0; x < X_TILES; ++x) {
             for (int y = 0; y < Y_TILES; ++y) {
-                Tile tile = new Tile(x, y, minesMap[x][y], (x == superMineX && y == superMineY));
-                grid[x][y] = tile;
-                paneCenter.getChildren().add(grid[x][y]);
+                try {
+                    Tile tile = new Tile(x, y, minesMap[x][y], (x == supermineX) && (y == supermineY));
+                    grid[x][y] = tile;
+                    paneCenter.getChildren().add(grid[x][y]);
+                } catch (ContradictionException e) {
+                    System.err.println(e.getMessage());
+                    e.printStackTrace();
+                    System.exit(7);
+                }
             }
         }
 
@@ -218,7 +224,8 @@ public class MinesweeperApp extends Application {
             for (int y = 0; y < Y_TILES; ++y) {
                 Tile tile = grid[x][y];
 
-                if (tile.hasMine) continue;
+                if (tile.hasMine)
+                    continue;
 
                 long mines = getNeighbors(tile).stream().filter(t -> t.hasMine).count();
 
@@ -280,7 +287,7 @@ public class MinesweeperApp extends Application {
     private class Tile extends StackPane {
         private final int x, y;
         private final boolean hasMine;
-        private final boolean hasSuperMine;
+        private final boolean hasSupermine;
         private boolean isOpen = false;
         private boolean isFlagged = false;
         private boolean isFlaggedPermanent = false;
@@ -288,11 +295,14 @@ public class MinesweeperApp extends Application {
         private final Rectangle border = new Rectangle(TILE_SIZE - 1, TILE_SIZE - 1);
         private final Text text = new Text();
 
-        public Tile(int x, int y, boolean mine, boolean superMine) {
+        public Tile(int x, int y, boolean mine, boolean supermine) throws ContradictionException {
             this.x = x;
             this.y = y;
             this.hasMine = mine;
-            this.hasSuperMine = superMine;
+            this.hasSupermine = supermine;
+
+            if (!this.hasMine && this.hasSupermine)
+                throw new ContradictionException("CONTRADICTION: A tile that has a supermine technically also has a mine.");
 
             border.setStroke(Color.LIGHTGRAY);
 
@@ -310,7 +320,8 @@ public class MinesweeperApp extends Application {
                     case PRIMARY -> open();
                     case SECONDARY -> flag();
                     case MIDDLE -> {
-                        if (!isOpen) return;
+                        if (!isOpen)
+                            return;
 
                         List<Tile> neighbors = getNeighbors(this);
 
@@ -320,7 +331,7 @@ public class MinesweeperApp extends Application {
                         if (neighborsFlagged == neighborsMined) {
                             open();
                             for (Tile neighbor : neighbors)
-                                if (!neighbor.hasMine) neighbor.open();
+                                if (!neighbor.isFlagged) neighbor.open();
                         }
                     }
                 }
@@ -388,32 +399,32 @@ public class MinesweeperApp extends Application {
                 gameStarted = true;
             }
 
-            if (isOpen || minesRemainingNumber == 0 && !isFlagged || gameFinished)
+            if (isOpen || (minesRemainingNumber == 0 && !isFlagged) || isFlaggedPermanent || gameFinished)
                 return;
 
+            isFlagged = !isFlagged;
+
             if (!isFlagged) {
-                isFlagged = true;
-                minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
-                if (!hasSuperMine || tries > 4) {
-                    border.setFill(Color.ORANGERED);
-                } else {
+                border.setFill(Color.BLACK);
+                minesRemainingText.setText(String.valueOf(++minesRemainingNumber));
+            } else {
+                if (hasSupermine && tries <= 4) {
+                    this.flagPermanent();
                     List<Tile> sameRowColNeighbors = getRowColNeighbors(this);
                     for (Tile tile : sameRowColNeighbors)
                         if (tile.hasMine) tile.flagPermanent();
                         else              tile.open();
+                } else {
+                    border.setFill(Color.ORANGERED);
+                    minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
                 }
-
-            } else if (!isFlaggedPermanent) {
-                isFlagged = false;
-                minesRemainingText.setText(String.valueOf(++minesRemainingNumber));
-                border.setFill(Color.BLACK);
             }
         }
 
         private void flagPermanent() {
-            isFlagged = true;
-            isFlaggedPermanent = true;
+            isFlagged = isFlaggedPermanent = true;
             border.setFill(Color.ORANGE);
+            minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
         }
     }
 
@@ -424,7 +435,7 @@ public class MinesweeperApp extends Application {
     private static int safeTilesTotalNumber, openTilesNumber;
     private static int minesTotalNumber, minesRemainingNumber;
     private static Text minesRemainingText;
-    private static boolean superMineExists;
+    private static boolean supermineExists;
 
     private static int secondsTotalNumber, secondsRemainingNumber;
     private static Text secondsRemainingText;
@@ -466,7 +477,7 @@ public class MinesweeperApp extends Application {
                     case 2 -> {
                         if (invalidValue(difficulty, data, "seconds"))
                             throw new InvalidValueException("Invalid number of seconds given.");
-                        secondsTotalNumber = 30; // TODO: change secondsTotalNumber
+                        secondsTotalNumber = 30; // TODO: set to 'data'
                         secondsRemainingNumber = secondsTotalNumber;
                     }
                     case 3 -> {
@@ -475,7 +486,7 @@ public class MinesweeperApp extends Application {
                                 "Invalid data given about the existence of supermine. Must be either 0 or 1." :
                                 "There can't be a supermine in easy difficulty."
                             );
-                        superMineExists = (data == 1);
+                        supermineExists = (data == 1);
                     }
                     default -> throw new InvalidDescriptionException("The " + scenarioFile + " file has excess lines.");
                 }
