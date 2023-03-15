@@ -1,6 +1,8 @@
 package com.example.minesweeper;
 
 import javafx.application.Application;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -14,20 +16,29 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 
 public class MinesweeperApp extends Application {
 
     private static final int TILE_SIZE = 35;
     private static int WINDOW_WIDTH, WINDOW_HEIGHT, X_TILES, Y_TILES;
     private static String fileName = "medialab\\scenario-1.txt"; /*"medialab\\examples\\invalid_range_example.txt"*/
+    private static Stage stageApp;
     private static Scene scene;
     private static BorderPane root;
     private static Pane paneTop, paneCenter;
+
+    private void restartScene() {
+        createPaneTop();
+        createPaneCenter();
+        createRoot();
+        scene.setRoot(root);
+    }
 
     private void createRoot() {
         root = new BorderPane();
@@ -56,6 +67,21 @@ public class MinesweeperApp extends Application {
         final MenuItem startItem = new MenuItem("Start");
         final SeparatorMenuItem separator = new SeparatorMenuItem();
         final MenuItem exitItem = new MenuItem("Exit");
+        exitItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent e) {
+                Alert exitAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                exitAlert.setTitle("Exit");
+                exitAlert.setHeaderText("You're about to exit!");
+                exitAlert.setContentText("Are you sure you want to exit Minesweeper?");
+
+                if (exitAlert.showAndWait().orElseThrow() == ButtonType.OK) {
+                    timer.cancel();
+//                    stageApp.close();
+                    System.out.println("Application should close");
+                }
+            }
+        });
         applicationMenu.getItems().addAll(createItem, loadItem, startItem, separator, exitItem);
         final Menu detailsMenu = new Menu("Details");
         final MenuItem roundsItem = new MenuItem("Rounds");
@@ -126,42 +152,6 @@ public class MinesweeperApp extends Application {
         paneTop.getChildren().add(startButton);
     }
 
-    private List<Tile> getNeighbors(Tile tile) {
-        List<Tile> neighbors = new ArrayList<>();
-
-        int[][] points = new int[][] {
-                {-1, -1}, { 0, -1}, { 1, -1},
-                {-1,  0},           { 1,  0},
-                {-1,  1}, { 0,  1}, { 1,  1}
-        };
-
-        for (int[] point : points) {
-            int dx = point[0];
-            int dy = point[1];
-
-            int neighborX = tile.x + dx;
-            int neighborY = tile.y + dy;
-
-            if (isValidCoordinate(neighborX, neighborY))
-                neighbors.add(grid[neighborX][neighborY]);
-        }
-
-        return neighbors;
-    }
-    private List<Tile> getRowColNeighbors (Tile tile) {
-        List<Tile> neighbors = new ArrayList<>();
-
-        for (int x = 0; x < X_TILES; ++x)
-            if (x != tile.x)
-                neighbors.add(grid[x][tile.y]);
-
-        for (int y = 0; y < Y_TILES; ++y)
-            if (y != tile.y)
-                neighbors.add(grid[tile.x][y]);
-
-        return neighbors;
-    }
-
     private void createPaneCenter() {
         paneCenter = new Pane();
 
@@ -169,9 +159,11 @@ public class MinesweeperApp extends Application {
         paneCenter.setMinSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
 
         //Create the mines map // TODO : this needs optimization
+        /*
         //boolean plantMine;
         //boolean superMinePlanted = false;
         //final double densityOfMines = ((double) totalNumberOfMines) / ((double) (X_TILES * Y_TILES));
+        */
         int currentNumberOfMines = 0, superMineX = 0, superMineY = 0;
         final int nthMineWithSuperMine = ((int) (Math.random() * 100)) % minesTotalNumber;
         boolean[][] minesMap = new boolean[X_TILES][Y_TILES];
@@ -179,19 +171,38 @@ public class MinesweeperApp extends Application {
             minesMap[x][y] = false;
 
         // Decide mines' locations on the grid
-        while (currentNumberOfMines < minesTotalNumber) {
-            int randomX = ((int) (Math.random() * 100)) % X_TILES;
-            int randomY = ((int) (Math.random() * 100)) % Y_TILES;
+        try {
+            File minesFile = new File("mines.txt");
+            if (minesFile.createNewFile())
+                System.out.println("File created: " + minesFile.getName());
+            FileWriter fileWriter = new FileWriter("mines.txt");
 
-            if (!minesMap[randomX][randomY]) {
-                minesMap[randomX][randomY] = true;
-                if (++currentNumberOfMines == nthMineWithSuperMine) {
-                    superMineX = randomX;
-                    superMineY = randomY;
-                    //superMinePlanted = true;
+            boolean isSuperMine;
+
+            while (currentNumberOfMines < minesTotalNumber) {
+                int randomX = ((int) (Math.random() * 100)) % X_TILES;
+                int randomY = ((int) (Math.random() * 100)) % Y_TILES;
+
+                if (!minesMap[randomX][randomY]) {
+                    minesMap[randomX][randomY] = true;
+                    isSuperMine = (++currentNumberOfMines == nthMineWithSuperMine);
+                    if (isSuperMine) {
+                        superMineX = randomX;
+                        superMineY = randomY;
+                        //superMinePlanted = true;
+                    }
+
+                    fileWriter.write(randomX + " " + randomY + " " + (isSuperMine ? "1" : "0") + "\n");
                 }
             }
+            fileWriter.close();
+
+        } catch (IOException e) {
+            System.err.println("ERROR");
+            e.printStackTrace();
+            System.exit(5);
         }
+
 
         // Create grid and place all mines
         for (int x = 0; x < X_TILES; ++x) {
@@ -227,6 +238,42 @@ public class MinesweeperApp extends Application {
                 }
             }
         }
+    }
+
+    private List<Tile> getNeighbors(Tile tile) {
+        List<Tile> neighbors = new ArrayList<>();
+
+        int[][] points = new int[][] {
+                {-1, -1}, { 0, -1}, { 1, -1},
+                {-1,  0},           { 1,  0},
+                {-1,  1}, { 0,  1}, { 1,  1}
+        };
+
+        for (int[] point : points) {
+            int dx = point[0];
+            int dy = point[1];
+
+            int neighborX = tile.x + dx;
+            int neighborY = tile.y + dy;
+
+            if (isValidCoordinate(neighborX, neighborY))
+                neighbors.add(grid[neighborX][neighborY]);
+        }
+
+        return neighbors;
+    }
+    private List<Tile> getRowColNeighbors (Tile tile) {
+        List<Tile> neighbors = new ArrayList<>();
+
+        for (int x = 0; x < X_TILES; ++x)
+            if (x != tile.x)
+                neighbors.add(grid[x][tile.y]);
+
+        for (int y = 0; y < Y_TILES; ++y)
+            if (y != tile.y)
+                neighbors.add(grid[tile.x][y]);
+
+        return neighbors;
     }
 
     private static Tile[][] grid;
@@ -284,9 +331,7 @@ public class MinesweeperApp extends Application {
             if (!gameStarted) {
                 timer.scheduleAtFixedRate(task, 0, 1000);
                 gameStarted = true;
-            }
-
-            if (isOpen || gameFinished)
+            } else if (isOpen || gameFinished)
                 return;
 
             isOpen = true;
@@ -295,15 +340,13 @@ public class MinesweeperApp extends Application {
             border.setFill(hasMine ? Color.DARKRED : Color.DARKGRAY);
 
             if (hasMine) {
+
                 timer.cancel();
                 gameFinished = true;
-                System.out.println("Game Over!");
-
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Game Over!");
                 alert.setHeaderText("You landed on a mine!");
                 alert.setContentText("Try again?");
-
                 if (alert.showAndWait().orElseThrow() == ButtonType.OK) {
                     gameStarted = gameFinished = false;
                     timer = new Timer();
@@ -312,11 +355,10 @@ public class MinesweeperApp extends Application {
                         public void run() {
                             if (secondsRemainingNumber > 0) {
                                 secondsRemainingText.setText(String.valueOf(--secondsRemainingNumber));
-                                System.out.println(secondsRemainingNumber);
                             } else {
                                 // TODO: fix what happens when timer reaches zero
                                 System.out.println("Timer reached zero!");
-                                timer.purge();
+                                timer.cancel();
                                 gameFinished = true;
                             }
                         }
@@ -328,19 +370,16 @@ public class MinesweeperApp extends Application {
                         e.printStackTrace();
                         System.exit(5);
                     }
-                    createPaneTop();
-                    createPaneCenter();
-                    createRoot();
-                    scene.setRoot(root);
-
-                    return;
+                    restartScene();
                 }
 
-            }
-
-
-            if (text.getText().isEmpty())
+            } else if (++openTilesNumber == safeTilesTotalNumber) {
+                // TODO: player-wins-and-game-ends state
+                timer.cancel();
+                gameFinished = true;
+            } else if (text.getText().isEmpty()) {
                 getNeighbors(this).forEach(Tile::open);
+            }
         }
 
         public void flag() {
@@ -365,9 +404,9 @@ public class MinesweeperApp extends Application {
                 }
 
             } else if (!isFlaggedPermanent) {
+                isFlagged = false;
                 minesRemainingText.setText(String.valueOf(++minesRemainingNumber));
                 border.setFill(Color.BLACK);
-                isFlagged = false;
             }
         }
 
@@ -382,6 +421,7 @@ public class MinesweeperApp extends Application {
     private static int tries = 0;
     private static void triesIncrease() { ++tries; }
 
+    private static int safeTilesTotalNumber, openTilesNumber;
     private static int minesTotalNumber, minesRemainingNumber;
     private static Text minesRemainingText;
     private static boolean superMineExists;
@@ -396,7 +436,7 @@ public class MinesweeperApp extends Application {
     private void initializeVariables(String scenarioFile) throws IOException {
 
         try {
-            File scenarioId = new File("./src/main/java/com/example/minesweeper/" + scenarioFile);
+            File scenarioId = new File("./" + scenarioFile);
             if (!scenarioId.exists())
                 throw new FileNotFoundException("File " + scenarioFile + " does not exist.");
 
@@ -421,11 +461,12 @@ public class MinesweeperApp extends Application {
                             throw new InvalidValueException("Invalid number of mines given.");
                         minesTotalNumber = data;
                         minesRemainingNumber = minesTotalNumber;
+                        safeTilesTotalNumber = X_TILES * Y_TILES - minesTotalNumber;
                     }
                     case 2 -> {
                         if (invalidValue(difficulty, data, "seconds"))
                             throw new InvalidValueException("Invalid number of seconds given.");
-                        secondsTotalNumber = data;
+                        secondsTotalNumber = 30; // TODO: change secondsTotalNumber
                         secondsRemainingNumber = secondsTotalNumber;
                     }
                     case 3 -> {
@@ -439,7 +480,17 @@ public class MinesweeperApp extends Application {
                     default -> throw new InvalidDescriptionException("The " + scenarioFile + " file has excess lines.");
                 }
 
-                System.out.println(data);
+                // Print to standard output the scenario imported.
+                {
+                    String str = "";
+                    switch (line) {
+                        case 0 -> str = "--Scenario imported: \nDifficulty: ";
+                        case 1 -> str = "Mines: ";
+                        case 2 -> str = "Seconds: ";
+                        case 3 -> str = "Supermines: ";
+                    }
+                    System.out.println(str + data);
+                }
             }
             myReader.close();
 
@@ -456,6 +507,7 @@ public class MinesweeperApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        stageApp = stage;
         try {
             //root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("minesweeper-view.fxml")));
             initializeVariables(fileName);
@@ -466,11 +518,10 @@ public class MinesweeperApp extends Application {
                 public void run() {
                     if (secondsRemainingNumber > 0) {
                         secondsRemainingText.setText(String.valueOf(--secondsRemainingNumber));
-                        System.out.println(secondsRemainingNumber);
                     } else {
                         // TODO: fix what happens when timer reaches zero
                         System.out.println("Timer reached zero!");
-                        timer.purge();
+                        timer.cancel();
                         gameFinished = true;
                     }
                 }
@@ -501,13 +552,12 @@ public class MinesweeperApp extends Application {
         }
     }
     public static void exit(Stage stage) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Exit");
-        alert.setHeaderText("You're about to exit!");
-        alert.setContentText("Are you sure you want to exit Minesweeper?");
+        Alert exitAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        exitAlert.setTitle("Exit");
+        exitAlert.setHeaderText("You're about to exit!");
+        exitAlert.setContentText("Are you sure you want to exit Minesweeper?");
 
-        if (alert.showAndWait().orElseThrow() == ButtonType.OK) {
-            System.out.println("You successfully exited!");
+        if (exitAlert.showAndWait().orElseThrow() == ButtonType.OK) {
             timer.cancel();
             stage.close();
         }

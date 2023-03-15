@@ -20,6 +20,7 @@ public class MenuBarController {
 
     public void exitFromMenuItem(ActionEvent event) {
 
+
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Exit");
         alert.setHeaderText("You're about to exit!");
