@@ -1,19 +1,13 @@
 package com.example.minesweeper;
 
 import javafx.application.Application;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 
 import java.io.File;
@@ -27,65 +21,86 @@ public class MinesweeperApp extends Application {
 
     private static final int TILE_SIZE = 35;
     private static int WINDOW_WIDTH, WINDOW_HEIGHT, X_TILES, Y_TILES;
-    private static String fileName = "medialab\\scenario-2.txt";
-    private static Stage stageApp;
-    private static Scene scene;
-    private static BorderPane root;
-    private static Pane paneTop, paneCenter;
+    public static final double paneTopHeight = 80;
+    private static final double menuBarHeight = 25.6;
+    private static Scene scene = new Scene(new Pane());
+    private static BorderPane root = null;
+    private static Pane paneTop = null, paneCenter = null;
+    public static boolean gameStarted = false, gameFinished = false;
 
-    private void restartScene() {
+    private static void createRoot() {
+        if (root == null) {
+            root = new BorderPane();
+
+            root.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+            root.setMinSize(X_TILES * TILE_SIZE, Y_TILES * TILE_SIZE);
+        }
+
         createPaneTop();
-        createPaneCenter();
-        createRoot();
-        scene.setRoot(root);
-    }
-
-    private void createRoot() {
-        root = new BorderPane();
-
-        root.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-        root.setMinSize(X_TILES * TILE_SIZE, Y_TILES * TILE_SIZE);
-
         root.setTop(paneTop);
+        createPaneCenter();
         root.setCenter(paneCenter);
     }
-
-    private void createPaneTop() {
-        paneTop = new Pane();
-        paneTop.setPrefSize(WINDOW_WIDTH, 80);
-        paneTop.setMinSize(WINDOW_WIDTH, paneTop.getPrefHeight());
+    private static void createPaneTop() {
+        if (paneTop == null) {
+            paneTop = new Pane();
+            paneTop.setPrefSize(WINDOW_WIDTH, paneTopHeight);
+            paneTop.setMinSize(WINDOW_WIDTH, paneTop.getPrefHeight());
+        }
         createMenuBar();
-        createMinesRemaining();
-        createStartButton();
-        createSecondsRemaining();
+        paneTop.getChildren().addAll(timeCounter, mineCounter);
+        createRestartButton();
     }
-    private final double menuBarHeight = 25.6;
-    private void createMenuBar() {
+    private static void createMenuBar() {
+        if (!paneTop.getChildren().isEmpty())
+            return;
         final Menu applicationMenu = new Menu("Application");
         final MenuItem createItem = new MenuItem("Create");
+        createItem.setOnAction(event -> {
+            // TODO: create popup window for create item
+        });
         final MenuItem loadItem = new MenuItem("Load");
+        loadItem.setOnAction(event -> {
+            // TODO: create popup window for load item
+            fileName = "something here.txt";
+            try {
+                initializeVariables(fileName);
+            } catch (IOException e) {
+                System.err.println("ERROR");
+                e.printStackTrace();
+                System.exit(5);
+            }
+        });
         final MenuItem startItem = new MenuItem("Start");
+        startItem.setOnAction(event -> {
+            // TODO: do smth for start item
+        });
         final SeparatorMenuItem separator = new SeparatorMenuItem();
         final MenuItem exitItem = new MenuItem("Exit");
-        exitItem.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent e) {
-                Alert exitAlert = new Alert(Alert.AlertType.CONFIRMATION);
-                exitAlert.setTitle("Exit");
-                exitAlert.setHeaderText("You're about to exit!");
-                exitAlert.setContentText("Are you sure you want to exit Minesweeper?");
+        exitItem.setOnAction(event -> {
+            Alert exitAlert = new Alert(Alert.AlertType.CONFIRMATION);
+            exitAlert.setTitle("Exit");
+            exitAlert.setHeaderText("You're about to exit!");
+            exitAlert.setContentText("Are you sure you want to exit Minesweeper?");
 
-                if (exitAlert.showAndWait().orElseThrow() == ButtonType.OK) {
-                    timer.cancel();
+            if (exitAlert.showAndWait().orElseThrow() == ButtonType.OK) {
+                timeCounter.timerCancel();
 //                    stageApp.close();
-                    System.out.println("Application should close");
-                }
+                System.out.println("Application should close");
+                System.exit(0);
+                // TODO: application should close when clicking on exit item
             }
         });
         applicationMenu.getItems().addAll(createItem, loadItem, startItem, separator, exitItem);
         final Menu detailsMenu = new Menu("Details");
         final MenuItem roundsItem = new MenuItem("Rounds");
+        roundsItem.setOnAction(event -> {
+            // TODO: do smth for rounds item
+        });
         final MenuItem solutionItem = new MenuItem("Solution");
+        solutionItem.setOnAction(event -> {
+            // TODO: do smth for solution item
+        });
         detailsMenu.getItems().addAll(roundsItem, solutionItem);
 
         MenuBar menuBar = new MenuBar();
@@ -95,77 +110,37 @@ public class MinesweeperApp extends Application {
 
         paneTop.getChildren().add(menuBar);
     }
-    private void createMinesRemaining() {
-        Rectangle minesRemainingBox = new Rectangle(80, 40);
-
-        minesRemainingBox.setStroke(Color.DARKGRAY);
-        minesRemainingBox.setStrokeWidth(3);
-        minesRemainingBox.setFill(Color.rgb(42,84,40));
-        minesRemainingBox.relocate(
-                WINDOW_WIDTH - 5 - minesRemainingBox.getWidth() - minesRemainingBox.getStrokeWidth(),
-                (paneTop.getPrefHeight() + menuBarHeight - 40 - minesRemainingBox.getStrokeWidth()) / 2.0
+    private static void createRestartButton() {
+        if (paneTop.getChildren().size() > 3)
+            return;
+        Button restartButton = new Button("☺");
+        restartButton.setPrefSize(72, 52);
+        restartButton.setFont(Font.font("Arial", FontWeight.BOLD,25));
+        restartButton.setTextFill(Color.GREEN);
+        restartButton.relocate(
+                (WINDOW_WIDTH - restartButton.getPrefWidth()) / 2.0,
+                (paneTop.getPrefHeight() + menuBarHeight - restartButton.getPrefHeight()) / 2.0
         );
 
-        minesRemainingText = new Text(String.valueOf(minesTotalNumber));
-        minesRemainingText.setFont(Font.font("Arial"));
-        minesRemainingText.setScaleX(2);
-        minesRemainingText.setScaleY(2);
-        minesRemainingText.relocate(
-                minesRemainingBox.getLayoutX() + minesRemainingBox.getWidth() / 1.7,
-                menuBarHeight + minesRemainingBox.getHeight() / 2.5 + 5
-        );
-
-        paneTop.getChildren().addAll(minesRemainingBox, minesRemainingText);
+        paneTop.getChildren().add(restartButton);
     }
-    private void createSecondsRemaining() {
-        Rectangle secondsRemainingBox = new Rectangle(80, 40);
+    private static void createPaneCenter() {
+        if (paneCenter == null) {
+            paneCenter = new Pane();
 
-        secondsRemainingBox.setStroke(Color.DARKGRAY);
-        secondsRemainingBox.setStrokeWidth(3);
-        secondsRemainingBox.setFill(Color.rgb(42,84,40));
-        secondsRemainingBox.relocate(
-                5,
-                (paneTop.getPrefHeight() + menuBarHeight - 40 - secondsRemainingBox.getStrokeWidth()) / 2.0
-        );
+            paneCenter.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
+            paneCenter.setMinSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
+        }
 
-        secondsRemainingText = new Text(String.valueOf(secondsTotalNumber));
-        secondsRemainingText.setFont(Font.font("Arial"));
-        secondsRemainingText.setScaleX(2);
-        secondsRemainingText.setScaleY(2);
-        secondsRemainingText.relocate(
-                secondsRemainingBox.getX() + secondsRemainingBox.getWidth() / 1.7,
-                menuBarHeight + secondsRemainingBox.getHeight() / 2.5 + 5
-        );
-
-        paneTop.getChildren().addAll(secondsRemainingBox, secondsRemainingText);
-    }
-    private void createStartButton() {
-        startButton = new Button("☺");
-        startButton.setPrefSize(72, 52);
-        startButton.setFont(Font.font("Arial", FontWeight.BOLD,25));
-        startButton.setTextFill(Color.GREEN);
-        startButton.relocate(
-                (WINDOW_WIDTH - startButton.getPrefWidth()) / 2.0,
-                (paneTop.getPrefHeight() + menuBarHeight - startButton.getPrefHeight()) / 2.0
-        );
-
-        paneTop.getChildren().add(startButton);
-    }
-
-    private void createPaneCenter() {
-        paneCenter = new Pane();
-
-        paneCenter.setPrefSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
-        paneCenter.setMinSize(WINDOW_WIDTH, WINDOW_HEIGHT - paneTop.getPrefHeight());
-
-        //Create the mines map // TODO : this needs optimization
+        //Create the mines map // TODO : creating mines map needs optimization
         /*
         //boolean plantMine;
         //boolean superminePlanted = false;
         //final double densityOfMines = ((double) totalNumberOfMines) / ((double) (X_TILES * Y_TILES));
         */
         int currentNumberOfMines = 0, supermineX = -1, supermineY = -1;
-        final int nthMineWithSupermine = ((int) (Math.random() * 100)) % minesTotalNumber;
+        final int nthMineWithSupermine;
+        nthMineWithSupermine = Tile.supermineExists ? (((int) (Math.random() * 100)) % mineCounter.getTotalNumber()) : -1;
         boolean[][] minesMap = new boolean[X_TILES][Y_TILES];
         for (int x = 0; x < X_TILES; ++x) for (int y = 0; y < Y_TILES; ++y)
             minesMap[x][y] = false;
@@ -174,12 +149,13 @@ public class MinesweeperApp extends Application {
         try {
             File minesFile = new File("mines.txt");
             if (minesFile.createNewFile())
-                System.out.println("File created: " + minesFile.getName());
+                System.out.print("File created: " + minesFile.getName() + ". ");
+            System.out.println("Writing to " + minesFile.getName() + " file.");
             FileWriter fileWriter = new FileWriter("mines.txt");
 
             boolean isSupermine;
-            int randomX = 0, randomY = 0;
-            while (currentNumberOfMines < minesTotalNumber) {
+            int randomX, randomY;
+            while (currentNumberOfMines < mineCounter.getTotalNumber()) {
                 randomX = ((int) (Math.random() * 100)) % X_TILES;
                 randomY = ((int) (Math.random() * 100)) % Y_TILES;
 
@@ -196,19 +172,18 @@ public class MinesweeperApp extends Application {
                 }
             }
             fileWriter.close();
-
         } catch (IOException e) {
             System.err.println("ERROR");
             e.printStackTrace();
             System.exit(5);
         }
 
-
         // Create grid and place all mines
+        paneCenter.getChildren().clear();
         for (int x = 0; x < X_TILES; ++x) {
             for (int y = 0; y < Y_TILES; ++y) {
                 try {
-                    Tile tile = new Tile(x, y, minesMap[x][y], (x == supermineX) && (y == supermineY));
+                    Tile tile = new Tile(x, y, TILE_SIZE, minesMap[x][y], (x == supermineX) && (y == supermineY));
                     grid[x][y] = tile;
                     paneCenter.getChildren().add(grid[x][y]);
                 } catch (ContradictionException e) {
@@ -224,30 +199,41 @@ public class MinesweeperApp extends Application {
             for (int y = 0; y < Y_TILES; ++y) {
                 Tile tile = grid[x][y];
 
-                if (tile.hasMine)
+                if (tile.getHasMine()) {
+                    tile.setTextColor(Color.WHITE);
                     continue;
+                }
 
-                long mines = getNeighbors(tile).stream().filter(t -> t.hasMine).count();
+                long mines = getNeighbors(tile).stream().filter(Tile::getHasMine).count();
 
                 if (mines > 0) {
                     switch ((int) mines) {
-                        case 1 -> tile.text.setFill(Color.BLUE);
-                        case 2 -> tile.text.setFill(Color.GREEN);
-                        case 3 -> tile.text.setFill(Color.RED);
-                        case 4 -> tile.text.setFill(Color.PURPLE);
-                        case 5 -> tile.text.setFill(Color.BROWN);
-                        case 6 -> tile.text.setFill(Color.LIGHTGREY);
-                        case 7 -> tile.text.setFill(Color.DARKRED);
-                        case 8 -> tile.text.setFill(Color.BLACK);
+                        case 1 -> tile.setTextColor(Color.BLUE);
+                        case 2 -> tile.setTextColor(Color.GREEN);
+                        case 3 -> tile.setTextColor(Color.RED);
+                        case 4 -> tile.setTextColor(Color.PURPLE);
+                        case 5 -> tile.setTextColor(Color.BROWN);
+                        case 6 -> tile.setTextColor(Color.LIGHTGREY);
+                        case 7 -> tile.setTextColor(Color.DARKRED);
+                        case 8 -> tile.setTextColor(Color.BLACK);
                     }
-                    tile.text.setText(String.valueOf(mines));
-                    tile.text.setStrokeWidth(5);
+                    tile.setText((int) mines);
                 }
             }
         }
     }
 
-    private List<Tile> getNeighbors(Tile tile) {
+    public static MineCounterBox mineCounter;
+    public static TimeCounterBox timeCounter = null;
+
+    private static int tries = 0;
+    public static void triesIncrease() { ++tries; }
+    public static int getTries() { return tries; }
+//    private static List<Score> scoreTable;
+
+    private static Tile[][] grid;
+
+    public static List<Tile> getNeighbors(Tile tile) {
         List<Tile> neighbors = new ArrayList<>();
 
         int[][] points = new int[][] {
@@ -260,8 +246,8 @@ public class MinesweeperApp extends Application {
             int dx = point[0];
             int dy = point[1];
 
-            int neighborX = tile.x + dx;
-            int neighborY = tile.y + dy;
+            int neighborX = tile.getX() + dx;
+            int neighborY = tile.getY() + dy;
 
             if (isValidCoordinate(neighborX, neighborY))
                 neighbors.add(grid[neighborX][neighborY]);
@@ -269,187 +255,29 @@ public class MinesweeperApp extends Application {
 
         return neighbors;
     }
-    private List<Tile> getRowColNeighbors (Tile tile) {
+    public static List<Tile> getRowColNeighbors(Tile tile) {
         List<Tile> neighbors = new ArrayList<>();
 
         for (int x = 0; x < X_TILES; ++x)
-            if (x != tile.x)
-                neighbors.add(grid[x][tile.y]);
+            if (x != tile.getX())
+                neighbors.add(grid[x][tile.getY()]);
 
         for (int y = 0; y < Y_TILES; ++y)
-            if (y != tile.y)
-                neighbors.add(grid[tile.x][y]);
+            if (y != tile.getY())
+                neighbors.add(grid[tile.getX()][y]);
 
         return neighbors;
     }
 
-    private static Tile[][] grid;
-    private class Tile extends StackPane {
-        private final int x, y;
-        private final boolean hasMine;
-        private final boolean hasSupermine;
-        private boolean isOpen = false;
-        private boolean isFlagged = false;
-        private boolean isFlaggedPermanent = false;
-
-        private final Rectangle border = new Rectangle(TILE_SIZE - 1, TILE_SIZE - 1);
-        private final Text text = new Text();
-
-        public Tile(int x, int y, boolean mine, boolean supermine) throws ContradictionException {
-            this.x = x;
-            this.y = y;
-            this.hasMine = mine;
-            this.hasSupermine = supermine;
-
-            if (!this.hasMine && this.hasSupermine)
-                throw new ContradictionException("CONTRADICTION: A tile that has a supermine technically also has a mine.");
-
-            border.setStroke(Color.LIGHTGRAY);
-
-            text.setFont(Font.font(20));
-            text.setText(hasMine ? "X" : "");
-            text.setVisible(false);
-            text.setTextAlignment(TextAlignment.CENTER);
-
-            getChildren().addAll(border, text);
-
-            relocate((x * TILE_SIZE), (y * TILE_SIZE));
-
-            setOnMouseClicked(event -> {
-                switch (event.getButton()) {
-                    case PRIMARY -> open();
-                    case SECONDARY -> flag();
-                    case MIDDLE -> {
-                        if (!isOpen)
-                            return;
-
-                        List<Tile> neighbors = getNeighbors(this);
-
-                        int neighborsFlagged = (int) neighbors.stream().filter(n -> n.isFlagged).count();
-                        int neighborsMined = (int) neighbors.stream().filter(n -> n.hasMine).count();
-
-                        if (neighborsFlagged == neighborsMined) {
-                            open();
-                            for (Tile neighbor : neighbors)
-                                if (!neighbor.isFlagged) neighbor.open();
-                        }
-                    }
-                }
-            });
-        }
-
-        public void open() {
-            if (!gameStarted) {
-                timer.scheduleAtFixedRate(task, 0, 1000);
-                gameStarted = true;
-            } else if (isOpen || gameFinished)
-                return;
-
-            isOpen = true;
-            triesIncrease();
-            text.setVisible(true);
-            border.setFill(hasMine ? Color.DARKRED : Color.DARKGRAY);
-
-            if (hasMine) {
-
-                timer.cancel();
-                gameFinished = true;
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Game Over!");
-                alert.setHeaderText("You landed on a mine!");
-                alert.setContentText("Try again?");
-                if (alert.showAndWait().orElseThrow() == ButtonType.OK) {
-                    gameStarted = gameFinished = false;
-                    timer = new Timer();
-                    task = new TimerTask() {
-                        @Override
-                        public void run() {
-                            if (secondsRemainingNumber > 0) {
-                                secondsRemainingText.setText(String.valueOf(--secondsRemainingNumber));
-                            } else {
-                                // TODO: fix what happens when timer reaches zero
-                                System.out.println("Timer reached zero!");
-                                timer.cancel();
-                                gameFinished = true;
-                            }
-                        }
-                    };
-                    try {
-                        initializeVariables(fileName);
-                    } catch (IOException e) {
-                        System.err.println("ERROR");
-                        e.printStackTrace();
-                        System.exit(5);
-                    }
-                    restartScene();
-                }
-
-            } else if (++openTilesNumber == safeTilesTotalNumber) {
-                // TODO: player-wins-and-game-ends state
-                timer.cancel();
-                gameFinished = true;
-            } else if (text.getText().isEmpty()) {
-                getNeighbors(this).forEach(Tile::open);
-            }
-        }
-
-        public void flag() {
-            if (!gameStarted) {
-                timer.scheduleAtFixedRate(task, 0, 1000);
-                gameStarted = true;
-            }
-
-            if (isOpen || (minesRemainingNumber == 0 && !isFlagged) || isFlaggedPermanent || gameFinished)
-                return;
-
-            isFlagged = !isFlagged;
-
-            if (!isFlagged) {
-                border.setFill(Color.BLACK);
-                minesRemainingText.setText(String.valueOf(++minesRemainingNumber));
-            } else {
-                if (hasSupermine && tries <= 4) {
-                    this.flagPermanent();
-                    List<Tile> sameRowColNeighbors = getRowColNeighbors(this);
-                    for (Tile tile : sameRowColNeighbors)
-                        if (tile.hasMine) tile.flagPermanent();
-                        else              tile.open();
-                } else {
-                    border.setFill(Color.ORANGERED);
-                    minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
-                }
-            }
-        }
-
-        private void flagPermanent() {
-            isFlagged = isFlaggedPermanent = true;
-            border.setFill(Color.ORANGE);
-            minesRemainingText.setText(String.valueOf(--minesRemainingNumber));
-        }
-    }
-
-    private static boolean gameStarted = false, gameFinished = false;
-    private static int tries = 0;
-    private static void triesIncrease() { ++tries; }
-
-    private static int safeTilesTotalNumber, openTilesNumber;
-    private static int minesTotalNumber, minesRemainingNumber;
-    private static Text minesRemainingText;
-    private static boolean supermineExists;
-
-    private static int secondsTotalNumber, secondsRemainingNumber;
-    private static Text secondsRemainingText;
-    private static Timer timer;
-    private static TimerTask task;
-
-    private static Button startButton;
-
-    private void initializeVariables(String scenarioFile) throws IOException {
+    public static String fileName = "medialab\\scenario-2.txt";
+    public static void initializeVariables(String scenarioFile) throws IOException {
 
         try {
             File scenarioId = new File("./" + scenarioFile);
             if (!scenarioId.exists())
-                throw new FileNotFoundException("File " + scenarioFile + " does not exist.");
+                throw new FileNotFoundException(
+                        "File " + scenarioFile + " does not exist."
+                );
 
             Scanner myReader = new Scanner(scenarioId);
             for (int line = 0, difficulty = 0, data; myReader.hasNextLine(); ++line) {
@@ -458,7 +286,9 @@ public class MinesweeperApp extends Application {
                 switch (line) {
                     case 0 -> {
                         if (data != 1 && data != 2)
-                            throw new InvalidValueException("Invalid difficulty given. Must be either 1 or 2 (easy or difficult).");
+                            throw new InvalidValueException(
+                                    "Invalid difficulty given. Must be either 1 or 2 (easy or difficult)."
+                            );
 
                         difficulty = data;
 
@@ -470,15 +300,24 @@ public class MinesweeperApp extends Application {
                     case 1 -> {
                         if (invalidValue(difficulty, data, "mines"))
                             throw new InvalidValueException("Invalid number of mines given.");
-                        minesTotalNumber = data;
-                        minesRemainingNumber = minesTotalNumber;
-                        safeTilesTotalNumber = X_TILES * Y_TILES - minesTotalNumber;
+
+                        mineCounter = new MineCounterBox(data);
+                        mineCounter.positionBox(
+                                WINDOW_WIDTH - InfoBox.getWidthMixed() - 5,
+                                (paneTopHeight + menuBarHeight - InfoBox.getHeightMixed()) / 2.0
+                        );
                     }
                     case 2 -> {
                         if (invalidValue(difficulty, data, "seconds"))
                             throw new InvalidValueException("Invalid number of seconds given.");
-                        secondsTotalNumber = 30; // TODO: set to 'data'
-                        secondsRemainingNumber = secondsTotalNumber;
+
+                        if (timeCounter != null)
+                            timeCounter.timerCancel();
+                        timeCounter = new TimeCounterBox(data);
+                        timeCounter.positionBox(
+                                5,
+                                (paneTopHeight + menuBarHeight - InfoBox.getHeightMixed()) / 2.0
+                        );
                     }
                     case 3 -> {
                         if (invalidValue(difficulty, data, "supermine"))
@@ -486,9 +325,11 @@ public class MinesweeperApp extends Application {
                                 "Invalid data given about the existence of supermine. Must be either 0 or 1." :
                                 "There can't be a supermine in easy difficulty."
                             );
-                        supermineExists = (data == 1);
+                        Tile.supermineExists = (data == 1);
                     }
-                    default -> throw new InvalidDescriptionException("The " + scenarioFile + " file has excess lines.");
+                    default -> throw new InvalidDescriptionException(
+                            "The " + scenarioFile + " file has excess information."
+                    );
                 }
 
                 // Print to standard output the scenario imported.
@@ -516,30 +357,17 @@ public class MinesweeperApp extends Application {
         }
     }
 
+    public static void restartScene() {
+        createRoot();
+        scene.setRoot(root);
+    }
+
     @Override
     public void start(Stage stage) {
-        stageApp = stage;
         try {
             //root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("minesweeper-view.fxml")));
             initializeVariables(fileName);
 
-            timer = new Timer();
-            task = new TimerTask() {
-                @Override
-                public void run() {
-                    if (secondsRemainingNumber > 0) {
-                        secondsRemainingText.setText(String.valueOf(--secondsRemainingNumber));
-                    } else {
-                        // TODO: fix what happens when timer reaches zero
-                        System.out.println("Timer reached zero!");
-                        timer.cancel();
-                        gameFinished = true;
-                    }
-                }
-            };
-
-            createPaneTop();
-            createPaneCenter();
             createRoot();
             scene = new Scene(root);
 
@@ -569,7 +397,7 @@ public class MinesweeperApp extends Application {
         exitAlert.setContentText("Are you sure you want to exit Minesweeper?");
 
         if (exitAlert.showAndWait().orElseThrow() == ButtonType.OK) {
-            timer.cancel();
+            timeCounter.timerCancel();
             stage.close();
         }
     }
@@ -581,14 +409,27 @@ public class MinesweeperApp extends Application {
         return (x >= 0 && x < X_TILES) && (y >= 0 && y < Y_TILES);
     }
     private static boolean invalidValue(int diff, int number, String type) {
-        if (type.equals("mines"))
-            return diff == 1 && (number < 9 || number > 11) ||
+        boolean result = false;
+        switch (type) {
+            case "mines" -> result =
+                    diff == 1 && (number < 9 || number > 11) ||
                     diff == 2 && (number < 35 || number > 45);
-        else if (type.equals("seconds"))
-            return diff == 1 && (number < 120 || number > 180) ||
+            case "seconds" -> result =
+                    diff == 1 && (number < 120 || number > 180) ||
                     diff == 2 && (number < 240 || number > 360);
-        else
-            return !(number == 0 || (diff != 1 && number == 1));
+            case "supermine" -> result =
+                    !(number == 0 || (diff != 1 && number == 1));
+            default -> {
+                try {
+                    throw new Exception("ERROR: Invalid string given as an argument.");
+                } catch (Exception e) {
+                    System.err.print(e.getMessage());
+                    e.printStackTrace();
+                    System.exit(10);
+                }
+            }
+        }
+        return result;
     }
 
     public static void main(String[] args) { launch(); }
