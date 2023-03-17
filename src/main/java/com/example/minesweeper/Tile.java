@@ -22,6 +22,16 @@ public class Tile extends StackPane {
     private final Text text = new Text();
     private final Circle circle = new Circle();
 
+    /**
+     * Class constructor.
+     *
+     * @param x the x-coordinate of the tile inside its parent, measured in pixels
+     * @param y the y-coordinate of the tile inside its parent, measured in pixels
+     * @param tileSize the width and height of the tile in pixels
+     * @param mine argument that states whether the tile will contain a mine
+     * @param supermine argument that states whether the tile will contain a supermine
+     * @throws ContradictionException if it is stated that the tile does not contain a mine but contains a supermine a ContradictionException is thrown
+     */
     public Tile(int x, int y, int tileSize, boolean mine, boolean supermine) throws ContradictionException {
         this.x = x;
         this.y = y;
@@ -56,7 +66,7 @@ public class Tile extends StackPane {
 
         setOnMouseClicked(event -> {
             switch (event.getButton()) {
-                case PRIMARY -> open();
+                case PRIMARY -> { open(); MinesweeperApp.triesIncrease(); }
                 case SECONDARY -> flag();
                 case MIDDLE -> {
                     if (MinesweeperApp.gameFinished) {
@@ -72,13 +82,22 @@ public class Tile extends StackPane {
 
                     if (neighborsFlagged == neighborsMined)
                         for (Tile neighbor : neighbors)
-                            if (!neighbor.isFlagged)
+                            if (!neighbor.isFlagged) {
                                 neighbor.open();
+                                MinesweeperApp.triesIncrease();
+                            }
                 }
             }
         });
     }
 
+    /**
+     * Method that opens the tile. The tries made in the current game are NOT automatically increased.
+     * If the tile contains a mine or is the last one that does not contain a mine,
+     * the game ends, the score is being saved and an alert is shown asking the user to play Minesweeper again.
+     * If the tile is not next to any mine-containing tile, it automatically opens the tiles next to it.
+     * If the opening of the tile concludes in the game to be finished, the timer is stopped automatically.
+     */
     public void open() {
         if (!MinesweeperApp.gameStarted) {
             MinesweeperApp.timeCounter.timerStart();
@@ -86,19 +105,16 @@ public class Tile extends StackPane {
         } else if (MinesweeperApp.gameFinished) {
             MinesweeperApp.endBecauseTimeRanOut();
             return;
-        } else if (isOpen) {
+        } else if (isOpen)
             return;
-        }
 
         MinesweeperApp.mineCounter.increaseOpenedTiles();
-        System.out.println("Currently opened tiles; " + MinesweeperApp.mineCounter.getTilesOpenNumber());
         isOpen = true;
-        MinesweeperApp.triesIncrease();
         text.setVisible(true);
         border.setFill(hasMine ? Color.DARKRED : Color.DARKGRAY);
 
         if (hasMine) {
-            MinesweeperApp.saveScore();
+            MinesweeperApp.saveScore(false);
 
             MinesweeperApp.timeCounter.timerCancel();
             circle.setVisible(true);
@@ -114,8 +130,7 @@ public class Tile extends StackPane {
             MinesweeperApp.timeCounter.timerCancel();
             System.out.println("Congratulations! You won!");
             MinesweeperApp.gameFinished = true;
-
-            MinesweeperApp.saveScore();
+            MinesweeperApp.saveScore(true);
 
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("YOU WON!");
@@ -132,6 +147,14 @@ public class Tile extends StackPane {
         text.setVisible(true);
         border.setFill(Color.DARKGRAY);
     }
+
+    /**
+     * Method that flags the tile. The remaining number of unflagged mine-containing tiles in the game is automatically updated.
+     * If the tile contains a supermine and no more than 4 tries have been made in the current game, all the other tiles
+     * in the same row and column will open, if they do not contain a mine, or be flagged, if they do contain a mine.
+     * The mines that are flagged permanently won't be able to be opened or flagged again in the current game.
+     *
+     */
     public void flag() {
         if (!MinesweeperApp.gameStarted) {
             MinesweeperApp.timeCounter.timerStart();
@@ -153,9 +176,10 @@ public class Tile extends StackPane {
             if (hasSupermine && MinesweeperApp.getTries() <= 4) {
                 this.flagPermanent();
                 List<Tile> sameRowColNeighbors = MinesweeperApp.getRowColNeighbors(this);
-                for (Tile tile : sameRowColNeighbors)
+                for (Tile tile : sameRowColNeighbors) {
                     if (tile.hasMine) tile.flagPermanent();
-                    else              tile.openNonRecursive();
+                    else tile.openNonRecursive();
+                }
             } else {
                 border.setFill(Color.ORANGERED);
                 MinesweeperApp.mineCounter.setText(MinesweeperApp.mineCounter.decreaseRemainingNumber());
@@ -173,11 +197,33 @@ public class Tile extends StackPane {
         border.setFill(Color.DARKRED);
     }
 
+    /**
+     * Method that returns the x-coordinate of the tile in relation to its parent.
+     * @return x-coordinate of the tile in its parent
+     */
     public int getX() { return x; }
+
+    /**
+     * Method that returns the y-coordinate of the tile in relation to its parent.
+     * @return y-coordinate of the tile in its parent
+     */
     public int getY() { return y; }
 
+    /**
+     * Method that returns true if the tile contains a mine or false if the tile does not contain a mine.
+     * @return boolean value expressing the possession of a mine
+     */
     public boolean getHasMine() { return hasMine; }
 
+    /**
+     * Method that sets the text's color to the specified color given as an argument.
+     * @param color color that the text will be made to
+     */
     public void setTextColor(Color color) { text.setFill(color); }
+
+    /**
+     * Method that sets the text to the specified number given as an argument.
+     * @param number number that the text will have
+     */
     public void setText(int number) { text.setText(String.valueOf(number)); }
 }

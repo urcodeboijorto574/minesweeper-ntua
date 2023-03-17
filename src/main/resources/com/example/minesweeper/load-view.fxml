@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.text.Font?>
+
+<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="300.0" prefWidth="400.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.minesweeper.LoadController">
+   <children>
+      <Button fx:id="button" layoutX="174.0" layoutY="206.0" mnemonicParsing="false" onAction="#submitFilePath" text="Submit" />
+      <TextField fx:id="textField" layoutX="26.0" layoutY="130.0" prefHeight="40.0" prefWidth="350.0" promptText="scenario-X" />
+      <Label alignment="CENTER" contentDisplay="CENTER" layoutY="50.0" nodeOrientation="LEFT_TO_RIGHT" prefHeight="40.0" prefWidth="400.0" text="  Enter the relative file path in the text field below:" textAlignment="CENTER">
+         <font>
+            <Font size="14.0" />
+         </font></Label>
+   </children>
+</Pane>

@@ -2,6 +2,7 @@ package com.example.minesweeper;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -41,37 +42,44 @@ public class MinesweeperApp extends Application {
         return root;
     }
     private static Pane createPaneTop() {
-        if (paneTop == null) {
-            paneTop = new Pane();
-            paneTop.setStyle("-fx-background-color: darkslategray");
-            paneTop.setPrefSize(WINDOW_WIDTH, paneTopHeight);
-            paneTop.setMinSize(WINDOW_WIDTH, paneTopHeight);
-        }
+        paneTop = new Pane();
+        paneTop.setStyle("-fx-background-color: darkslategray");
+        paneTop.setPrefSize(WINDOW_WIDTH, paneTopHeight);
+        paneTop.setMinSize(WINDOW_WIDTH, paneTopHeight);
 
-        MenuBar tempMenuBar = createMenuBar();
-        if (tempMenuBar != null) paneTop.getChildren().add(tempMenuBar);
+        paneTop.getChildren().add(createMenuBar());
         Button tempRestartButton = createRestartButton();
         if (tempRestartButton != null) paneTop.getChildren().add(tempRestartButton);
         paneTop.getChildren().addAll(timeCounter, mineCounter);
 
         return paneTop;
     }
+    public static Stage createStage, loadStage, roundsStage;
     private static MenuBar createMenuBar() {
-        if (!paneTop.getChildren().isEmpty())
-            return null;
-
         // Application Menu
         final Menu applicationMenu = new Menu("Application"); {
             final MenuItem createItem = new MenuItem("Create");
             createItem.setOnAction(event -> {
-                // TODO: create popup window for create item
+                try {
+                    Pane pane = FXMLLoader.load(Objects.requireNonNull(MinesweeperApp.class.getResource("create-view.fxml")));
+                    createStage = new Stage();
+                    createStage.setTitle("Create a scenario-id file");
+                    createStage.setScene(new Scene(pane));
+                    createStage.showAndWait();
+                } catch (IOException e) {
+                    System.err.println("ERROR");
+                    e.printStackTrace();
+                    System.exit(5);
+                }
             });
             final MenuItem loadItem = new MenuItem("Load");
             loadItem.setOnAction(event -> {
-                // TODO: create popup window for load item
-                fileName = "something here.txt";
                 try {
-                    initializeVariables(fileName);
+                    Pane pane = FXMLLoader.load(Objects.requireNonNull(MinesweeperApp.class.getResource("load-view.fxml")));
+                    loadStage = new Stage();
+                    loadStage.setTitle("Load a scenario-id file");
+                    loadStage.setScene(new Scene(pane));
+                    loadStage.showAndWait();
                 } catch (IOException e) {
                     System.err.println("ERROR");
                     e.printStackTrace();
@@ -100,14 +108,25 @@ public class MinesweeperApp extends Application {
         final Menu detailsMenu = new Menu("Details"); {
             final MenuItem roundsItem = new MenuItem("Rounds");
             roundsItem.setOnAction(event -> {
-                // TODO: create popup window for rounds item
+                try {
+                    Pane pane = FXMLLoader.load(Objects.requireNonNull(MinesweeperApp.class.getResource("rounds-view.fxml")));
+                    roundsStage = new Stage();
+                    roundsStage.setTitle("Inspect 5 last scores");
+                    roundsStage.setScene(new Scene(pane));
+                    roundsStage.showAndWait();
+                } catch (IOException e) {
+                    System.err.println("ERROR");
+                    e.printStackTrace();
+                    System.exit(5);
+                }
+
             });
             final MenuItem solutionItem = new MenuItem("Solution");
             solutionItem.setOnAction(event -> {
                 timeCounter.timerCancel();
                 gameFinished = true;
                 revealMines();
-                saveScore();
+                saveScore(false);
             });
             detailsMenu.getItems().addAll(roundsItem, solutionItem);
         }
@@ -284,24 +303,24 @@ public class MinesweeperApp extends Application {
     private static int tries = 0;
     public static void triesIncrease() { ++tries; }
     public static int getTries() { return tries; }
-    private static final List<Score> scoreTable = new ArrayList<>();
-    public static void saveScore() {
-        if (scoreTable.size() == 5)
-            scoreTable.remove(4);
-        scoreTable.add(0, new Score(
-                mineCounter.getTotalNumber(),
-                tries,
-                timeCounter.getTotalNumber() - timeCounter.getRemainingNumber(),
-                false
+    public static final List<Score> scoreTable = new ArrayList<>();
+    public static void saveScore(boolean playerWon) {
+//        if (scoreTable.size() == 5) scoreTable.remove(4);
+        scoreTable.add(0,
+                new Score(
+                        mineCounter.getTotalNumber(),
+                        tries,
+                        timeCounter.getTotalNumber() - timeCounter.getRemainingNumber(),
+                        playerWon
                 )
         );
     }
 
     // Methods used for initializing the game variables (number of mines and seconds etc.).
-    private static String fileName = "medialab\\scenario-2.txt";
+    public static String fileName = "scenario-2.txt";
     public static void initializeVariables(String scenarioFile) throws IOException {
         try {
-            File scenarioId = new File("./" + scenarioFile);
+            File scenarioId = new File(".\\medialab\\" + scenarioFile);
             if (!scenarioId.exists())
                 throw new FileNotFoundException("File " + scenarioFile + " does not exist.");
 
@@ -372,7 +391,7 @@ public class MinesweeperApp extends Application {
                         case 2 -> str = "Seconds: ";
                         case 3 -> str = "Supermines: ";
                     }
-                    System.out.println(str + data);
+                    System.out.println(str + data + (line == 3 ? "\n" : ""));
                 }
             }
             myReader.close();
@@ -420,7 +439,7 @@ public class MinesweeperApp extends Application {
     @Override
     public void start(Stage stage) {
         try {
-            //root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("minesweeper-view.fxml")));
+            //root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("load-view.fxml")));
             initializeVariables(fileName);
             scene = new Scene(createRoot());
             stage.setTitle("MediaLab Minesweeper");

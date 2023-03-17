@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.text.Font?>
+
+
+<AnchorPane prefHeight="652.0" prefWidth="715.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.minesweeper.RoundsController">
+   <children>
+      <Label alignment="CENTER" contentDisplay="CENTER" layoutX="69.0" layoutY="35.0" prefHeight="43.0" prefWidth="114.0" text="Score 1">
+         <font>
+            <Font size="18.0" />
+         </font>
+      </Label>
+      <ListView fx:id="scoreListView1" layoutX="26.0" layoutY="90.0" prefHeight="181.0" prefWidth="200.0" />
+      <Label alignment="CENTER" contentDisplay="CENTER" layoutX="303.0" layoutY="35.0" prefHeight="43.0" prefWidth="114.0" text="Score 2">
+         <font>
+            <Font size="18.0" />
+         </font>
+      </Label>
+      <ListView fx:id="scoreListView2" layoutX="259.0" layoutY="90.0" prefHeight="182.0" prefWidth="200.0" />
+      <Label alignment="CENTER" contentDisplay="CENTER" layoutX="533.0" layoutY="35.0" prefHeight="43.0" prefWidth="114.0" text="Score 3">
+         <font>
+            <Font size="18.0" />
+         </font>
+      </Label>
+      <ListView fx:id="scoreListView3" layoutX="490.0" layoutY="90.0" prefHeight="182.0" prefWidth="200.0" />
+      <Label alignment="CENTER" contentDisplay="CENTER" layoutX="185.0" layoutY="326.0" prefHeight="43.0" prefWidth="114.0" text="Score 4">
+         <font>
+            <Font size="18.0" />
+         </font>
+      </Label>
+      <ListView fx:id="scoreListView4" layoutX="142.0" layoutY="381.0" prefHeight="181.0" prefWidth="200.0" />
+      <Label alignment="CENTER" contentDisplay="CENTER" layoutX="419.0" layoutY="326.0" prefHeight="43.0" prefWidth="114.0" text="Score 5">
+         <font>
+            <Font size="18.0" />
+         </font>
+      </Label>
+      <ListView fx:id="scoreListView5" layoutX="376.0" layoutY="381.0" prefHeight="181.0" prefWidth="200.0" />
+      <Button fx:id="backButton" alignment="CENTER" contentDisplay="CENTER" layoutX="286.0" layoutY="596.0" mnemonicParsing="false" onAction="#goBack" text="Back to Minesweeper" />
+   </children>
+</AnchorPane>
