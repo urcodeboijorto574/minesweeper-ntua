@@ -1,7 +1,7 @@
 package com.example.minesweeper;
 
 public class Score {
-    /*private final int minesTotalNumber;
+    private final int minesTotalNumber;
     private final int tries;
     private final int timePlayedSeconds;
     private final boolean playerWon;
@@ -11,5 +11,11 @@ public class Score {
         this.tries = tries;
         this.timePlayedSeconds = timePlayedSeconds;
         this.playerWon = playerWon;
-    }*/
+    }
+
+    public int getMinesTotalNumber() { return minesTotalNumber; }
+    public int getTries() { return tries; }
+    public int getTimePlayedSeconds() { return timePlayedSeconds; }
+    public boolean getPlayerWon() { return playerWon; }
+
 }

@@ -1,6 +1,6 @@
 package com.example.minesweeper;
 
-public class MineCounterBox extends InfoBox {
+public class MineCounterBox extends CounterBox {
     private final int tilesSafeNumber;
     private int tilesOpenNumber = 0;
 
@@ -11,9 +11,9 @@ public class MineCounterBox extends InfoBox {
         tilesSafeNumber = tilesTotalNumber - totalNumber;
     }
 
-    public int increaseOpenedTiles() { return ++tilesOpenNumber; }
+    public void increaseOpenedTiles() { ++tilesOpenNumber; }
     public int getTilesSafeNumber() { return tilesSafeNumber; }
-//    public int getTilesOpenNumber() { return tilesOpenNumber; }
+    public int getTilesOpenNumber() { return tilesOpenNumber; }
 
     @Override
     public void setText(int number) {
